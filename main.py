@@ -376,27 +376,226 @@ def process_feed(feed_url: str, only_date: str | None, out_dir: str, n_points: i
     return items_by_date
 
 
-def build_index_html(out_dir: str = "output", site_title: str = "Résumés du flux Google Alerts"):
+def build_index_html(out_dir: str = "output", site_title: str = "Cyber Watch — Résumés quotidiens"):
+    """
+    Crée un index.html 'cyber style' :
+    - sidebar: liste des jours détectés dans /output
+    - panel de droite: rendu HTML du Markdown du jour sélectionné
+    - compte d'articles (nb de '## ' dans chaque fichier)
+    """
+    from json import dumps
     files = sorted(Path(out_dir).glob("*.md"), reverse=True)
-    li = [f'<li><a href="output/{p.name}">{p.stem}</a></li>' for p in files]
+    meta = []
+    for p in files:
+        try:
+            text = p.read_text(encoding="utf-8", errors="ignore")
+            count = sum(1 for line in text.splitlines() if line.startswith("## "))
+        except Exception:
+            count = 0
+        meta.append({"file": p.name, "date": p.stem, "count": count})
+
+    data_js = dumps(meta, ensure_ascii=False)  # injecté côté client
+
     html = f"""<!doctype html>
-<html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{site_title}</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }}
-h1 {{ font-size: 1.8rem; }} ul {{ line-height: 1.9; }}
-footer {{ margin-top: 3rem; font-size:.9rem; color:#666; }}
-.hint {{ background:#f3f4f6; padding:.75rem 1rem; border-radius:.5rem; }}
-</style></head>
+:root {{
+  --bg: #0b0f14;
+  --panel: #0f172a;
+  --card: #111827;
+  --muted: #9aa4b2;
+  --text: #e5e7eb;
+  --accent: #00ff9c;   /* néon vert */
+  --accent2: #22d3ee;  /* cyan */
+  --border: #1f2937;
+}}
+* {{ box-sizing: border-box; }}
+html, body {{ margin:0; height:100%; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }}
+a {{ color: var(--accent2); text-decoration: none; }}
+a:hover {{ text-decoration: underline; }}
+
+.layout {{
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 0;
+  min-height: 100vh;
+}}
+
+.sidebar {{
+  background: linear-gradient(180deg, rgba(34,211,238,0.07), rgba(0,255,156,0.07)), var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 18px 16px 12px;
+  position: sticky; top: 0; height: 100vh; overflow-y:auto;
+}}
+.brand {{
+  display:flex; align-items:center; gap:10px; padding:6px 8px 14px;
+}}
+.brand .dot {{
+  width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #bffff2, var(--accent));
+  box-shadow:0 0 10px var(--accent), 0 0 20px var(--accent);
+}}
+.brand h1 {{ margin:0; font-size: 18px; font-weight: 800; letter-spacing:.3px; }}
+.search {{ margin: 8px 8px 14px; }}
+.search input {{
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border);
+  background:#0c1422; color:var(--text); outline:none;
+}}
+.list {{ display:flex; flex-direction:column; gap:6px; padding:0 6px 30px; }}
+.item {{
+  display:flex; justify-content:space-between; align-items:center;
+  background: var(--card); border:1px solid var(--border);
+  padding:10px 12px; border-radius:12px; cursor:pointer;
+  transition: transform .08s ease, border-color .15s ease, background .15s ease;
+}}
+.item:hover {{ transform: translateY(-1px); border-color:#243447; }}
+.item.active {{ border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,255,156,0.15) inset; }}
+.item .date {{ font-weight: 600; }}
+.item .count {{
+  font-size:12px; color:var(--muted);
+  background:#0d1b2a; padding:4px 8px; border-radius:999px; border:1px solid var(--border);
+}}
+
+.content {{ padding: 28px 28px 60px; }}
+.topbar {{
+  display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;
+}}
+.topbar h2 {{ margin:0; font-size:22px; font-weight:800; letter-spacing:.2px; }}
+.btns {{ display:flex; gap:8px; }}
+.btn {{
+  background: #0d1b2a; color: var(--text);
+  border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:13px;
+}}
+.btn:hover {{ border-color:#2a3b54; }}
+
+.viewer {{
+  background: var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:22px 22px;
+  line-height:1.65;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}}
+.viewer h1, .viewer h2, .viewer h3 {{ margin-top: .6em; }}
+.viewer h2 {{ font-size: 20px; border-left: 3px solid var(--accent); padding-left: 10px; }}
+.viewer hr {{ border:0; border-top:1px dashed #2a3342; margin:18px 0; }}
+.viewer li {{ margin: 6px 0; }}
+.viewer code {{ background:#0c1422; border:1px solid var(--border); padding:2px 6px; border-radius:6px; }}
+
+.footer {{ margin-top:14px; color:var(--muted); font-size:12px; }}
+</style>
+</head>
 <body>
-<h1>{site_title}</h1>
-<p class="hint">Cliquez un jour pour voir les résumés (fichiers Markdown dans <code>output/</code>).</p>
-<ul>{"".join(li) if li else "<li>Aucun fichier encore. Lancez le script.</li>"}</ul>
-<footer>Généré par <code>main.py</code> — modèle mT5 XLSum si disponible, sinon fallback LexRank.</footer>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="dot"></div>
+      <h1>Cyber Watch</h1>
+    </div>
+    <div class="search">
+      <input id="q" type="search" placeholder="Rechercher une date... (ex. 2025-09-18)" />
+    </div>
+    <div id="list" class="list"></div>
+  </aside>
+
+  <main class="content">
+    <div class="topbar">
+      <h2 id="title">Sélectionnez une journée</h2>
+      <div class="btns">
+        <a id="openRaw" class="btn" href="#" target="_blank" rel="noopener">Ouvrir le fichier</a>
+        <button id="copyLink" class="btn">Copier le permalien</button>
+      </div>
+    </div>
+    <div id="viewer" class="viewer">Les résumés s’afficheront ici.</div>
+    <div class="footer">Généré automatiquement — thème <em>cyber</em>. Résumés locaux.</div>
+  </main>
+</div>
+
+<!-- Markdown renderer -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const FILES = {data_js};  // injecté depuis Python
+const listEl = document.getElementById('list');
+const viewer = document.getElementById('viewer');
+const titleEl = document.getElementById('title');
+const openRaw = document.getElementById('openRaw');
+const copyLink = document.getElementById('copyLink');
+const q = document.getElementById('q');
+
+function el(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild;}
+function fmtCount(n){return n===1? '1 article':''+n+' articles';}
+
+let current = null;
+
+function renderList(filter=''){
+  listEl.innerHTML='';
+  const rows = FILES.filter(x => x.date.includes(filter)).sort((a,b)=> a.date<b.date?1:-1);
+  if(!rows.length){ listEl.innerHTML = '<div style="color:#9aa4b2;padding:6px 10px;">Aucun jour correspondant.</div>'; return; }
+  rows.forEach((r,idx)=>{
+    const node = el(`<div class="item" data-file="\${r.file}">
+        <div class="date">\${r.date}</div>
+        <div class="count">\${fmtCount(r.count)}</div>
+      </div>`);
+    node.addEventListener('click', ()=> load(r.file));
+    listEl.appendChild(node);
+    if(idx===0 && !current) load(r.file);
+  });
+}
+
+async function load(file){
+  current = file;
+  document.querySelectorAll('.item').forEach(n=> n.classList.toggle('active', n.dataset.file===file));
+  titleEl.textContent = file.replace('.md','');
+  openRaw.href = 'output/'+file;
+  const url = 'output/'+file + '?_=' + Date.now(); // éviter cache
+  viewer.innerHTML = 'Chargement...';
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(res.status+' '+res.statusText);
+    const md = await res.text();
+    // petit post-traitement: transformer "[domaine](url) — Publié: ..." en bloc meta
+    const patched = md.replace(/\\[(.*?)\\]\\((.*?)\\) — Publié: (.*)/g,
+      (_m,dom,link,date)=>`**Source : [\${dom}](\${link})**  \\\\ _Publié : \${date}_`);
+    const html = marked.parse(patched);
+    viewer.innerHTML = html;
+    history.replaceState(null,'','#'+file.replace('.md',''));
+  }catch(e){
+    viewer.innerHTML = '<p style="color:#ff8a8a">Impossible de charger le fichier.</p>';
+    console.error(e);
+  }
+}
+
+copyLink.addEventListener('click', ()=>{
+  if(!current) return;
+  const url = location.origin + location.pathname + '#'+ current.replace('.md','');
+  navigator.clipboard.writeText(url).then(()=> {
+    copyLink.textContent = 'Lien copié ✓';
+    setTimeout(()=> copyLink.textContent='Copier le permalien', 1200);
+  });
+});
+
+q.addEventListener('input', (e)=> renderList(e.target.value.trim()));
+
+function boot(){
+  renderList('');
+  // Si un hash est présent (#YYYY-MM-DD) → charger directement
+  const h = location.hash.replace('#','');
+  if(h){
+    const f = FILES.find(x=> x.date===h);
+    if(f){ current=null; load(f.file); }
+  }
+}
+boot();
+</script>
 </body></html>"""
     Path("index.html").write_text(html, encoding="utf-8")
     return "index.html"
+
 
 
 def main():
