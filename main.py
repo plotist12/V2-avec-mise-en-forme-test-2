@@ -378,10 +378,8 @@ def process_feed(feed_url: str, only_date: str | None, out_dir: str, n_points: i
 
 def build_index_html(out_dir: str = "output", site_title: str = "Cyber Watch — Résumés quotidiens"):
     """
-    Crée un index.html 'cyber style' :
-    - sidebar: liste des jours détectés dans /output
-    - panel de droite: rendu HTML du Markdown du jour sélectionné
-    - compte d'articles (nb de '## ' dans chaque fichier)
+    Génère un index.html 'cyber style' lisant les fichiers du dossier output/.
+    (Version sans f-string pour éviter les erreurs d'accolades dans le JS/CSS.)
     """
     from json import dumps
     files = sorted(Path(out_dir).glob("*.md"), reverse=True)
@@ -394,100 +392,56 @@ def build_index_html(out_dir: str = "output", site_title: str = "Cyber Watch —
             count = 0
         meta.append({"file": p.name, "date": p.stem, "count": count})
 
-    data_js = dumps(meta, ensure_ascii=False)  # injecté côté client
+    data_js = dumps(meta, ensure_ascii=False)
 
-    html = f"""<!doctype html>
+    html = """<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{site_title}</title>
+<title>__TITLE__</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-:root {{
+:root {
   --bg: #0b0f14;
   --panel: #0f172a;
   --card: #111827;
   --muted: #9aa4b2;
   --text: #e5e7eb;
-  --accent: #00ff9c;   /* néon vert */
-  --accent2: #22d3ee;  /* cyan */
+  --accent: #00ff9c;
+  --accent2: #22d3ee;
   --border: #1f2937;
-}}
-* {{ box-sizing: border-box; }}
-html, body {{ margin:0; height:100%; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }}
-a {{ color: var(--accent2); text-decoration: none; }}
-a:hover {{ text-decoration: underline; }}
-
-.layout {{
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 0;
-  min-height: 100vh;
-}}
-
-.sidebar {{
-  background: linear-gradient(180deg, rgba(34,211,238,0.07), rgba(0,255,156,0.07)), var(--panel);
-  border-right: 1px solid var(--border);
-  padding: 18px 16px 12px;
-  position: sticky; top: 0; height: 100vh; overflow-y:auto;
-}}
-.brand {{
-  display:flex; align-items:center; gap:10px; padding:6px 8px 14px;
-}}
-.brand .dot {{
-  width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #bffff2, var(--accent));
-  box-shadow:0 0 10px var(--accent), 0 0 20px var(--accent);
-}}
-.brand h1 {{ margin:0; font-size: 18px; font-weight: 800; letter-spacing:.3px; }}
-.search {{ margin: 8px 8px 14px; }}
-.search input {{
-  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border);
-  background:#0c1422; color:var(--text); outline:none;
-}}
-.list {{ display:flex; flex-direction:column; gap:6px; padding:0 6px 30px; }}
-.item {{
-  display:flex; justify-content:space-between; align-items:center;
-  background: var(--card); border:1px solid var(--border);
-  padding:10px 12px; border-radius:12px; cursor:pointer;
-  transition: transform .08s ease, border-color .15s ease, background .15s ease;
-}}
-.item:hover {{ transform: translateY(-1px); border-color:#243447; }}
-.item.active {{ border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,255,156,0.15) inset; }}
-.item .date {{ font-weight: 600; }}
-.item .count {{
-  font-size:12px; color:var(--muted);
-  background:#0d1b2a; padding:4px 8px; border-radius:999px; border:1px solid var(--border);
-}}
-
-.content {{ padding: 28px 28px 60px; }}
-.topbar {{
-  display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;
-}}
-.topbar h2 {{ margin:0; font-size:22px; font-weight:800; letter-spacing:.2px; }}
-.btns {{ display:flex; gap:8px; }}
-.btn {{
-  background: #0d1b2a; color: var(--text);
-  border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:13px;
-}}
-.btn:hover {{ border-color:#2a3b54; }}
-
-.viewer {{
-  background: var(--card);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:22px 22px;
-  line-height:1.65;
-  box-shadow: 0 10px 30px rgba(0,0,0,.25);
-}}
-.viewer h1, .viewer h2, .viewer h3 {{ margin-top: .6em; }}
-.viewer h2 {{ font-size: 20px; border-left: 3px solid var(--accent); padding-left: 10px; }}
-.viewer hr {{ border:0; border-top:1px dashed #2a3342; margin:18px 0; }}
-.viewer li {{ margin: 6px 0; }}
-.viewer code {{ background:#0c1422; border:1px solid var(--border); padding:2px 6px; border-radius:6px; }}
-
-.footer {{ margin-top:14px; color:var(--muted); font-size:12px; }}
+}
+* { box-sizing: border-box; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+a { color: var(--accent2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.layout { display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
+.sidebar { background: linear-gradient(180deg, rgba(34,211,238,0.07), rgba(0,255,156,0.07)), var(--panel); border-right: 1px solid var(--border); padding: 18px 16px 12px; position: sticky; top: 0; height: 100vh; overflow-y:auto; }
+.brand { display:flex; align-items:center; gap:10px; padding:6px 8px 14px; }
+.brand .dot { width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #bffff2, var(--accent)); box-shadow:0 0 10px var(--accent), 0 0 20px var(--accent); }
+.brand h1 { margin:0; font-size: 18px; font-weight: 800; letter-spacing:.3px; }
+.search { margin: 8px 8px 14px; }
+.search input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0c1422; color:var(--text); outline:none; }
+.list { display:flex; flex-direction:column; gap:6px; padding:0 6px 30px; }
+.item { display:flex; justify-content:space-between; align-items:center; background: var(--card); border:1px solid var(--border); padding:10px 12px; border-radius:12px; cursor:pointer; transition: transform .08s ease, border-color .15s ease, background .15s ease; }
+.item:hover { transform: translateY(-1px); border-color:#243447; }
+.item.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,255,156,0.15) inset; }
+.item .date { font-weight: 600; }
+.item .count { font-size:12px; color:var(--muted); background:#0d1b2a; padding:4px 8px; border-radius:999px; border:1px solid var(--border); }
+.content { padding: 28px 28px 60px; }
+.topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+.topbar h2 { margin:0; font-size:22px; font-weight:800; letter-spacing:.2px; }
+.btns { display:flex; gap:8px; }
+.btn { background: #0d1b2a; color: var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:13px; }
+.btn:hover { border-color:#2a3b54; }
+.viewer { background: var(--card); border:1px solid var(--border); border-radius:16px; padding:22px 22px; line-height:1.65; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.viewer h2 { font-size: 20px; border-left: 3px solid var(--accent); padding-left: 10px; }
+.viewer hr { border:0; border-top:1px dashed #2a3342; margin:18px 0; }
+.viewer li { margin: 6px 0; }
+.viewer code { background:#0c1422; border:1px solid var(--border); padding:2px 6px; border-radius:6px; }
+.footer { margin-top:14px; color:var(--muted); font-size:12px; }
 </style>
 </head>
 <body>
@@ -516,10 +470,9 @@ a:hover {{ text-decoration: underline; }}
   </main>
 </div>
 
-<!-- Markdown renderer -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
-const FILES = {data_js};  // injecté depuis Python
+const FILES = __FILES_JSON__;
 const listEl = document.getElementById('list');
 const viewer = document.getElementById('viewer');
 const titleEl = document.getElementById('title');
@@ -528,7 +481,7 @@ const copyLink = document.getElementById('copyLink');
 const q = document.getElementById('q');
 
 function el(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild;}
-function fmtCount(n){return n===1? '1 article':''+n+' articles';}
+function fmtCount(n){return n===1? '1 article': n+' articles';}
 
 let current = null;
 
@@ -537,10 +490,10 @@ function renderList(filter=''){
   const rows = FILES.filter(x => x.date.includes(filter)).sort((a,b)=> a.date<b.date?1:-1);
   if(!rows.length){ listEl.innerHTML = '<div style="color:#9aa4b2;padding:6px 10px;">Aucun jour correspondant.</div>'; return; }
   rows.forEach((r,idx)=>{
-    const node = el(`<div class="item" data-file="\${r.file}">
-        <div class="date">\${r.date}</div>
-        <div class="count">\${fmtCount(r.count)}</div>
-      </div>`);
+    const node = el('<div class="item" data-file="'+r.file+'">\
+        <div class="date">'+r.date+'</div>\
+        <div class="count">'+fmtCount(r.count)+'</div>\
+      </div>');
     node.addEventListener('click', ()=> load(r.file));
     listEl.appendChild(node);
     if(idx===0 && !current) load(r.file);
@@ -549,18 +502,17 @@ function renderList(filter=''){
 
 async function load(file){
   current = file;
-  document.querySelectorAll('.item').forEach(n=> n.classList.toggle('active', n.dataset.file===file));
+  document.querySelectorAll('.item').forEach(n=> n.classList.toggle('active', n.getAttribute('data-file')===file));
   titleEl.textContent = file.replace('.md','');
   openRaw.href = 'output/'+file;
-  const url = 'output/'+file + '?_=' + Date.now(); // éviter cache
+  const url = 'output/'+file + '?_=' + Date.now();
   viewer.innerHTML = 'Chargement...';
   try{
     const res = await fetch(url);
     if(!res.ok) throw new Error(res.status+' '+res.statusText);
     const md = await res.text();
-    // petit post-traitement: transformer "[domaine](url) — Publié: ..." en bloc meta
     const patched = md.replace(/\\[(.*?)\\]\\((.*?)\\) — Publié: (.*)/g,
-      (_m,dom,link,date)=>`**Source : [\${dom}](\${link})**  \\\\ _Publié : \${date}_`);
+      function(_m,dom,link,date){return "**Source : ["+dom+"]("+link+")**  \\\\ _Publié : "+date+"_";});
     const html = marked.parse(patched);
     viewer.innerHTML = html;
     history.replaceState(null,'','#'+file.replace('.md',''));
@@ -581,20 +533,21 @@ copyLink.addEventListener('click', ()=>{
 
 q.addEventListener('input', (e)=> renderList(e.target.value.trim()));
 
-function boot(){
+(function boot(){
   renderList('');
-  // Si un hash est présent (#YYYY-MM-DD) → charger directement
   const h = location.hash.replace('#','');
   if(h){
     const f = FILES.find(x=> x.date===h);
     if(f){ current=null; load(f.file); }
   }
-}
-boot();
+})();
 </script>
 </body></html>"""
+
+    html = html.replace("__TITLE__", site_title).replace("__FILES_JSON__", data_js)
     Path("index.html").write_text(html, encoding="utf-8")
     return "index.html"
+
 
 
 
